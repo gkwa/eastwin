@@ -2,7 +2,8 @@
 
 ** summary
 
-This is a description of project eastwin.
+Script written by gpt to help me quickly list dynamodb tables and then
+delete the ones I've created while iterating.
 
 ** usage
 
@@ -10,5 +11,7 @@ Example:
 #+begin_example
 make test
 ./eastwin --help
-./eastwin --verbose --verbose # for debug
+make && ./eastwin --region=us-west-1 --filter=your-dynamodb-table
+make && ./eastwin --region=us-west-1 --filter=your-dynamodb-table --delete --dry-run 
+make && ./eastwin --region=us-west-1 --filter=your-dynamodb-table --delete
 #+end_example
