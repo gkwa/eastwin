@@ -1,0 +1,14 @@
+* eastwin
+
+** summary
+
+This is a description of project eastwin.
+
+** usage
+
+Example:
+#+begin_example
+make test
+./eastwin --help
+./eastwin --verbose --verbose # for debug
+#+end_example
