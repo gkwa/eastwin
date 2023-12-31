@@ -12,6 +12,9 @@ import (
 	"github.com/jessevdk/go-flags"
 )
 
+// DeletedTables stores the names of deleted tables
+var DeletedTables []string
+
 var opts struct {
 	LogFormat string `long:"log-format" choice:"text" choice:"json" default:"text" required:"false"`
 	Verbose   []bool `short:"v" long:"verbose" description:"Show verbose debug information, each -v bumps log level"`
@@ -73,19 +76,22 @@ func run() error {
 
 	if opts.DryRun {
 		for _, table := range tables {
-			fmt.Printf("dry-run. table would be deleted: %s", table)
+			fmt.Printf("dry-run. table would be deleted: %s\n", table)
 		}
 		return nil
 	}
 
 	filteredTables := filterTables(tables, opts.Filter)
 	if opts.Delete {
-		err := deleteTables(client, filteredTables)
+		DeletedTables, err = deleteTables(client, filteredTables)
 		if err != nil {
 			fmt.Println("Error deleting tables:", err)
 			return err
 		}
-		fmt.Println("Tables deleted successfully.")
+
+		for _, deletedTable := range DeletedTables {
+			fmt.Printf("Deleted: %s\n", deletedTable)
+		}
 	} else {
 		for _, table := range filteredTables {
 			fmt.Println(table)
@@ -127,16 +133,18 @@ func filterTables(tables []string, filter string) []string {
 	return filtered
 }
 
-func deleteTables(client *dynamodb.Client, tables []string) error {
+func deleteTables(client *dynamodb.Client, tables []string) ([]string, error) {
+	var deletedTables []string
 	for _, table := range tables {
 		tableName := table // Create a new variable to store the value
 		_, err := client.DeleteTable(context.TODO(), &dynamodb.DeleteTableInput{
 			TableName: &tableName,
 		})
 		if err != nil {
-			return err
+			return deletedTables, err
 		}
+		deletedTables = append(deletedTables, table)
 	}
 
-	return nil
+	return deletedTables, nil
 }
