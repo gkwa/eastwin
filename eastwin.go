@@ -16,12 +16,12 @@ import (
 var DeletedTables []string
 
 var opts struct {
-	LogFormat string `long:"log-format" choice:"text" choice:"json" default:"text" required:"false"`
-	Verbose   []bool `short:"v" long:"verbose" description:"Show verbose debug information, each -v bumps log level"`
-	Region    string `short:"r" long:"region" description:"AWS Region" required:"true"`
-	Filter    string `short:"f" long:"filter" description:"Filter tables by substring"`
-	Delete    bool   `short:"d" long:"delete" description:"Delete tables"`
-	DryRun    bool   `long:"dry-run" description:"Dry run: report what would be deleted"`
+	LogFormat string   `long:"log-format" choice:"text" choice:"json" default:"text" required:"false"`
+	Verbose   []bool   `short:"v" long:"verbose" description:"Show verbose debug information, each -v bumps log level"`
+	Region    string   `short:"r" long:"region" description:"AWS Region" required:"true"`
+	Filter    []string `short:"f" long:"filter" description:"Filter tables by substring"`
+	Delete    bool     `short:"d" long:"delete" description:"Delete tables"`
+	DryRun    bool     `long:"dry-run" description:"Dry run: report what would be deleted"`
 	logLevel  slog.Level
 }
 
@@ -110,23 +110,33 @@ func listTables(client *dynamodb.Client) ([]string, error) {
 	var tables []string
 	for _, tableName := range result.TableNames {
 		table := tableName
-		if opts.Filter == "" || strings.Contains(strings.ToLower(table), strings.ToLower(opts.Filter)) {
+		if opts.Filter == nil || len(opts.Filter) == 0 {
 			tables = append(tables, table)
+		} else {
+			for _, filter := range opts.Filter {
+				if strings.Contains(strings.ToLower(table), strings.ToLower(filter)) {
+					tables = append(tables, table)
+					break
+				}
+			}
 		}
 	}
 
 	return tables, nil
 }
 
-func filterTables(tables []string, filter string) []string {
-	if filter == "" {
+func filterTables(tables []string, filters []string) []string {
+	if len(filters) == 0 {
 		return tables
 	}
 
 	var filtered []string
 	for _, table := range tables {
-		if strings.Contains(strings.ToLower(table), strings.ToLower(filter)) {
-			filtered = append(filtered, table)
+		for _, filter := range filters {
+			if strings.Contains(strings.ToLower(table), strings.ToLower(filter)) {
+				filtered = append(filtered, table)
+				break
+			}
 		}
 	}
 
