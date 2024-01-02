@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
@@ -66,7 +67,7 @@ func run() error {
 
 	client := dynamodb.NewFromConfig(cfg)
 
-	tables, err := listTables(client)
+	tables, err := listTables(client, opts.Filter)
 	if err != nil {
 		return fmt.Errorf("error listing tables: %w", err)
 	}
@@ -85,8 +86,10 @@ func run() error {
 			return fmt.Errorf("error deleting tables: %w", err)
 		}
 
-		for _, deletedTable := range DeletedTables {
-			fmt.Printf("table %s deleted", deletedTable)
+		// Wait until tables are deleted
+		err = waitForDeletion(client, DeletedTables)
+		if err != nil {
+			return fmt.Errorf("error waiting for table deletion: %w", err)
 		}
 
 		if err := showAllTables(client); err != nil {
@@ -101,7 +104,7 @@ func run() error {
 	return nil
 }
 
-func listTables(client *dynamodb.Client) ([]string, error) {
+func listTables(client *dynamodb.Client, filter []string) ([]string, error) {
 	result, err := client.ListTables(context.TODO(), &dynamodb.ListTablesInput{})
 	if err != nil {
 		return nil, fmt.Errorf("error listing tables: %w", err)
@@ -110,11 +113,11 @@ func listTables(client *dynamodb.Client) ([]string, error) {
 	var tables []string
 	for _, tableName := range result.TableNames {
 		table := tableName
-		if opts.Filter == nil || len(opts.Filter) == 0 {
+		if len(filter) == 0 {
 			tables = append(tables, table)
 		} else {
-			for _, filter := range opts.Filter {
-				if strings.Contains(strings.ToLower(table), strings.ToLower(filter)) {
+			for _, f := range filter {
+				if strings.Contains(strings.ToLower(table), strings.ToLower(f)) {
 					tables = append(tables, table)
 					break
 				}
@@ -160,20 +163,57 @@ func deleteTables(client *dynamodb.Client, tables []string) ([]string, error) {
 }
 
 func showAllTables(client *dynamodb.Client) error {
-	tables, err := listTables(client)
+	tables, err := listTables(client, nil)
 	if err != nil {
 		fmt.Println("Error listing tables:", err)
 		return err
 	}
 
-	fmt.Println("Remaining Tables:")
 	if len(tables) == 0 {
-		fmt.Println("No remaining tables.")
+		fmt.Println("no remaining tables.")
 	} else {
+		fmt.Println("remaining tables:")
 		for _, table := range tables {
 			fmt.Println(table)
 		}
 	}
 
 	return nil
+}
+
+func waitForDeletion(client *dynamodb.Client, tables []string) error {
+	const maxAttempts = 10
+	const sleepDuration = time.Duration(1000/6) * time.Millisecond
+
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		tablesExist, err := checkTablesExist(client, tables)
+		if err != nil {
+			return err
+		}
+
+		if !tablesExist {
+			return nil
+		}
+
+		time.Sleep(sleepDuration)
+	}
+
+	return fmt.Errorf("tables still exist after waiting for deletion")
+}
+
+func checkTablesExist(client *dynamodb.Client, tables []string) (bool, error) {
+	existingTables, err := listTables(client, nil)
+	if err != nil {
+		return false, err
+	}
+
+	for _, table := range tables {
+		for _, existingTable := range existingTables {
+			if table == existingTable {
+				return true, nil
+			}
+		}
+	}
+
+	return false, nil
 }
