@@ -55,23 +55,20 @@ func run() error {
 	parser := flags.NewParser(&opts, flags.Default)
 	_, err := parser.Parse()
 	if err != nil {
-		fmt.Println(err)
 		parser.WriteHelp(os.Stdout)
-		return err
+		return fmt.Errorf("error parsing flags: %w", err)
 	}
 
 	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(opts.Region))
 	if err != nil {
-		fmt.Println("Error loading AWS configuration:", err)
-		return err
+		return fmt.Errorf("error loading AWS configuration: %w", err)
 	}
 
 	client := dynamodb.NewFromConfig(cfg)
 
 	tables, err := listTables(client)
 	if err != nil {
-		fmt.Println("Error listing tables:", err)
-		return err
+		return fmt.Errorf("error listing tables: %w", err)
 	}
 
 	if opts.DryRun {
@@ -85,12 +82,15 @@ func run() error {
 	if opts.Delete {
 		DeletedTables, err = deleteTables(client, filteredTables)
 		if err != nil {
-			fmt.Println("Error deleting tables:", err)
-			return err
+			return fmt.Errorf("error deleting tables: %w", err)
 		}
 
 		for _, deletedTable := range DeletedTables {
-			fmt.Printf("Deleted: %s\n", deletedTable)
+			fmt.Printf("table %s deleted", deletedTable)
+		}
+
+		if err := showAllTables(client); err != nil {
+			return fmt.Errorf("error showing remaining tables: %w", err)
 		}
 	} else {
 		for _, table := range filteredTables {
@@ -104,7 +104,7 @@ func run() error {
 func listTables(client *dynamodb.Client) ([]string, error) {
 	result, err := client.ListTables(context.TODO(), &dynamodb.ListTablesInput{})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error listing tables: %w", err)
 	}
 
 	var tables []string
@@ -157,4 +157,23 @@ func deleteTables(client *dynamodb.Client, tables []string) ([]string, error) {
 	}
 
 	return deletedTables, nil
+}
+
+func showAllTables(client *dynamodb.Client) error {
+	tables, err := listTables(client)
+	if err != nil {
+		fmt.Println("Error listing tables:", err)
+		return err
+	}
+
+	fmt.Println("Remaining Tables:")
+	if len(tables) == 0 {
+		fmt.Println("No remaining tables.")
+	} else {
+		for _, table := range tables {
+			fmt.Println(table)
+		}
+	}
+
+	return nil
 }
