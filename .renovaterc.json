@@ -5,6 +5,7 @@
     {
       "automerge": true,
       "automergeStrategy": "merge-commit",
+      "ignoreTests": true,
       "matchDepTypes": ["*"],
       "recreateWhen": "always"
     }
