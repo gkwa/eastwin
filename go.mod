@@ -6,7 +6,7 @@ toolchain go1.24.2
 
 require (
 	github.com/aws/aws-sdk-go-v2/config v1.29.13
-	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.42.1
+	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.42.2
 	github.com/jessevdk/go-flags v1.6.1
 	github.com/taylormonacelli/littlecow v0.0.5
 )
