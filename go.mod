@@ -2,7 +2,7 @@ module github.com/taylormonacelli/eastwin
 
 go 1.22
 
-toolchain go1.24.5
+toolchain go1.24.6
 
 require (
 	github.com/aws/aws-sdk-go-v2/config v1.30.3
